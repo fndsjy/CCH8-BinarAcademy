@@ -87,12 +87,6 @@ class AuthenticationController extends ApplicationController {
     const password = req.body.password;
     let existingUser = await this.userModel.findOne({ where: { email, }, });
 
-    // if (!existingUser) {
-    //   const err = new EmailAlreadyTakenError(email);
-    //   res.status(422).json(err);
-    //   return;
-    // }
-
     const role = await this.roleModel.findOne({
       where: { name: this.accessControl.CUSTOMER }
     });
