@@ -1,6 +1,5 @@
 const ApplicationController = require("../ApplicationController");
 const NotFoundError = require("../../errors/NotFoundError");
-const ApplicationError = require("../../errors/ApplicationError");
 
 describe("ApplicationController", () => {
   describe("#handleGetRoot", () => {
@@ -27,7 +26,7 @@ describe("ApplicationController", () => {
     it("should call res.status(200) and res.Json with status and message", () => {
       const mockRequest = {
         method: "get",
-        url: "kamunanya.co.id",
+        url: "fendys.co.id",
       };
 
       const mockResponse = {
@@ -54,7 +53,7 @@ describe("ApplicationController", () => {
     it("should call res.status(500) and res.Json with status and message", () => {
       const mockRequest = {
         method: "get",
-        url: "kamunanya.co.id",
+        url: "fendys.co.id",
       };
 
       const mockResponse = {

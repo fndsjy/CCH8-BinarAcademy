@@ -1,6 +1,6 @@
 const {
-  DB_USER = "",
-  DB_PASSWORD = "",
+  DB_USER = "postgres",
+  DB_PASSWORD = "fendys",
   DB_NAME = "bcr",
   DB_HOST = "0.0.0.0",
   DB_PORT = "5432",
@@ -10,7 +10,7 @@ module.exports = {
   development: {
     username: DB_USER,
     password: DB_PASSWORD,
-    database: `${DB_NAME}_development`,
+    database: `${DB_NAME}`,
     host: DB_HOST,
     port: DB_PORT,
     dialect: "postgres"
@@ -18,7 +18,7 @@ module.exports = {
   test: {
     username: DB_USER,
     password: DB_PASSWORD,
-    database: `${DB_NAME}_test`,
+    database: `${DB_NAME}`,
     host: DB_HOST,
     port: DB_PORT,
     dialect: "postgres"
@@ -26,7 +26,7 @@ module.exports = {
   production: {
     username: DB_USER,
     password: DB_PASSWORD,
-    database: `${DB_NAME}_production`,
+    database: `${DB_NAME}`,
     host: DB_HOST,
     port: DB_PORT,
     dialect: "postgres"
