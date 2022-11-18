@@ -1,441 +1,91 @@
-const AuthenticationController = require('../AuthenticationController');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const AuthenticationController = require("../AuthenticationController");
+const { User, Role } = require("../../models");
 const {
-  Role,
-} = require('../../models');
-const User = {};
-const {
+  WrongPasswordError,
+  NotFoundError,
+  InsufficientAccessError,
   EmailAlreadyTakenError,
   EmailNotRegisteredError,
-  WrongPasswordError,
-  InsufficientAccessError,
-  RecordNotFoundError,
-} = require('../../errors');
-const {JWT_SIGNATURE_KEY} = require('../../../config/application');
+} = require("../../errors");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
-const generateRandomNum = () => {
-  return Math.floor(Math.random() * 10 + 1);
-};
-const mockRole = {
-  id: 1,
-  name: 'COSTUMER',
-};
-const mockUser = {
-  id: 420,
-  name: 'Fendy',
-  email: new Date().getSeconds() + '@amongus.com',
-  password: 'fendy123',
-  image: 'new_image_is_here',
-  roleId: 1,
-};
-mockUser.encryptedPassword = bcrypt.hashSync(mockUser.password, 10);
-
-
-const mockUserRes = {
-  id: mockUser.id,
-  name: mockUser.name,
-  email: mockUser.email,
-  encryptedPassword: mockUser.encryptedPassword,
-  roleId: mockRole.id,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
-
-const mockUserModel = {
-  findOne: jest.fn().mockReturnValue(null),
-  create: jest.fn().mockReturnValue(mockUserRes),
-};
-const mockRoleModel = {
-  findOne: jest.fn().mockReturnValue(mockRole),
-};
-
-describe('AuthenticationController', () => {
-  describe('#encryptPassword', () => {
-    it('should return valid bcrypt hashed password string', () => {
-      const mockPass = 'amongus' + generateRandomNum();
-
-      const roleModel = Role;
-      const userModel = User;
-      const controller = new AuthenticationController({
-        userModel, roleModel, bcrypt, jwt,
+describe("AuthenticationController", () => {
+  describe("#constructorAuthenticationController", () => {
+    it("should set the user model", () => {
+      const userModel = {};
+      const roleModel = {};
+      const bcrypt = {};
+      const jwt = {};
+      const authenticationController = new AuthenticationController({
+        userModel,
+        roleModel,
+        bcrypt,
+        jwt,
       });
-
-      const hashResult = controller.encryptPassword(mockPass);
-
-      expect(bcrypt.compareSync(mockPass, hashResult)).toEqual(true);
+      expect(authenticationController.userModel).toEqual(userModel);
     });
   });
 
-  describe('#verifyPassword', () => {
-    it('should return true if hash and pass match.', () => {
-      const mockPass = 'amongus' + generateRandomNum();
-      const mockHass = bcrypt.hashSync(mockPass, 10);
-
-      const roleModel = Role;
-      const userModel = User;
-      const controller = new AuthenticationController({
-        userModel, roleModel, bcrypt, jwt,
-      });
-
-      const result = controller.verifyPassword(mockPass, mockHass);
-      expect(result).toEqual(true);
-    });
-
-    it('should return false if hash and pass not match.', () => {
-      const mockPass = 'amongus' + generateRandomNum();
-      const mockHass = bcrypt.hashSync(mockPass + 'sus', 10);
-
-      const roleModel = Role;
-      const userModel = User;
-      const controller = new AuthenticationController({
-        userModel, roleModel, bcrypt, jwt,
-      });
-
-      const result = controller.verifyPassword(mockPass, mockHass);
-      expect(result).toEqual(false);
-    });
-  });
-
-  describe('#createTokenFromUser', () => {
-    it('should return valid jwt token based on user and role.', () => {
-      const roleModel = Role;
-      const userModel = User;
-      const controller = new AuthenticationController({
-        userModel, roleModel, bcrypt, jwt,
-      });
-
-      const token = controller.createTokenFromUser(mockUser, mockRole);
-      const expectedToken = jwt.sign({
-        id: mockUser.id,
-        name: mockUser.name,
-        email: mockUser.email,
-        image: mockUser.image,
-        role: {
-          id: mockRole.id,
-          name: mockRole.name,
-        },
-      }, JWT_SIGNATURE_KEY);
-
-      expect(token).toEqual(expectedToken);
-    });
-  });
-
-  describe('#decodeToken', () => {
-    it('should return user data from given valid jwt token.', () => {
+  describe("#authorize", () => {
+    it("should run next function .", async () => {
       const mockUser = {
-        id: 420,
-        name: 'Fendy',
-        email: 'amongus@420.com',
-        image: 'new_image_is_here',
-        role: {
-          id: 2,
-          name: 'ADMIN',
-        },
+        id: 2,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
       };
-      const mockToken = jwt.sign(mockUser, JWT_SIGNATURE_KEY);
+      const mockRole = { id: 1, name: "COSTUMER" };
 
-      const roleModel = Role;
-      const userModel = User;
+      const roleModel = jest.fn().mockReturnValue(null);
+      const userModel = jest.fn().mockReturnValue(null);
+
       const controller = new AuthenticationController({
-        userModel, roleModel, bcrypt, jwt,
-      });
-
-      const decodeResult = controller.decodeToken(mockToken);
-      delete decodeResult['iat'];
-
-      expect(decodeResult).toEqual(mockUser);
-    });
-  });
-
-  describe('#handleRegister', () => {
-    it('should return res.status(201) and token if request valid.',
-        async () => {
-          const mockReq = {
-            body: {
-              name: mockUser.name,
-              email: mockUser.email,
-              password: mockUser.password,
-            },
-          };
-          const mockRes = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-          };
-          const mockNext = jest.fn();
-
-          const controller = new AuthenticationController({
-            userModel: mockUserModel,
-            roleModel: mockRoleModel,
-            bcrypt,
-            jwt,
-          });
-
-          await controller.handleRegister(
-              mockReq, mockRes, mockNext,
-          );
-
-          const expectedToken = controller.createTokenFromUser(
-              mockUserRes, mockRole,
-          );
-
-          expect(mockUserModel.create).toHaveBeenCalled();
-          expect(mockRes.status).toHaveBeenCalledWith(201);
-          expect(mockRes.json).toHaveBeenCalledWith({
-            accessToken: expectedToken,
-          });
-        },
-    );
-
-    it('should return res.status(422) and err instance if email already taken.',
-        async () => {
-          const mockReq = {
-            body: {
-              name: mockUser.name,
-              email: mockUser.email,
-              password: mockUser.password,
-            },
-          };
-          const mockRes = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-          };
-          const mockNext = jest.fn();
-
-          const mockUserModel = {
-            findOne: jest.fn().mockReturnValue(true),
-          };
-          const controller = new AuthenticationController({
-            userModel: mockUserModel,
-            roleModel: mockRoleModel,
-            bcrypt,
-            jwt,
-          });
-
-          await controller.handleRegister(
-              mockReq, mockRes, mockNext,
-          );
-
-          const expectedErr = new EmailAlreadyTakenError(mockUser.email);
-
-          expect(mockUserModel.findOne).toHaveBeenCalled();
-          expect(mockRes.status).toHaveBeenCalledWith(422);
-          expect(mockRes.json).toHaveBeenCalledWith(expectedErr);
-        },
-    );
-
-    it('should go to next function to handle general error.',
-        async () => {
-          const mockReq = {
-            body: {
-              name: mockUser.name,
-              email: mockUser.email,
-              password: mockUser.password,
-            },
-          };
-          const mockRes = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-          };
-          const mockNext = jest.fn();
-
-          const mockUserModel = {
-            findOne: jest.fn().mockRejectedValue(
-                new Error('random sus error'),
-            ),
-          };
-          const controller = new AuthenticationController({
-            userModel: mockUserModel,
-            roleModel: mockRoleModel,
-            bcrypt,
-            jwt,
-          });
-
-          await controller.handleRegister(
-              mockReq, mockRes, mockNext,
-          );
-
-          expect(mockNext).toHaveBeenCalled();
-        },
-    );
-  });
-
-  describe('#handleLogin', () => {
-    it('should res.status(201) and return access token if login valid',
-        async () => {
-          const mockReq = {
-            body: {
-              email: mockUser.email,
-              password: mockUser.password,
-            },
-          };
-          const mockRes = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-          };
-          const mockNext = jest.fn();
-
-          const mockUserModel = {
-            findOne: jest.fn().mockReturnValue({
-              ...mockUserRes,
-              Role: mockRole,
-            }),
-          };
-
-          const controller = new AuthenticationController({
-            userModel: mockUserModel,
-            roleModel: mockRoleModel,
-            bcrypt,
-            jwt,
-          });
-
-          await controller.handleLogin(mockReq, mockRes, mockNext);
-          const expectedToken = controller.createTokenFromUser(
-              {...mockUserRes, Role: mockRole}, mockRole,
-          );
-
-          expect(mockUserModel.findOne).toHaveBeenCalled();
-          expect(mockRes.status).toHaveBeenCalledWith(201);
-          expect(mockRes.json).toHaveBeenCalledWith({
-            accessToken: expectedToken,
-          });
-        });
-
-    it('should res.status(404) and return error if email not registered.',
-        async () => {
-          const mockReq = {
-            body: {
-              email: mockUser.email,
-              password: mockUser.password,
-            },
-          };
-          const mockRes = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-          };
-          const mockNext = jest.fn();
-
-          const mockUserModel = {
-            findOne: jest.fn().mockReturnValue(null),
-          };
-
-          const controller = new AuthenticationController({
-            userModel: mockUserModel,
-            roleModel: mockRoleModel,
-            bcrypt,
-            jwt,
-          });
-
-          await controller.handleLogin(mockReq, mockRes, mockNext);
-
-          const expectedErr = new EmailNotRegisteredError(mockUser.email);
-
-          expect(mockUserModel.findOne).toHaveBeenCalled();
-          expect(mockRes.status).toHaveBeenCalledWith(404);
-          expect(mockRes.json).toHaveBeenCalledWith(expectedErr);
-        });
-
-    it('should res.status(401) and return error if password wrong.',
-        async () => {
-          const mockReq = {
-            body: {
-              email: mockUser.email,
-              password: 'sus_password',
-            },
-          };
-          const mockRes = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-          };
-          const mockNext = jest.fn();
-
-          const mockUserModel = {
-            findOne: jest.fn().mockReturnValue({
-              ...mockUserRes,
-              Role: mockRole,
-            }),
-          };
-
-          const controller = new AuthenticationController({
-            userModel: mockUserModel,
-            roleModel: mockRoleModel,
-            bcrypt,
-            jwt,
-          });
-
-          await controller.handleLogin(mockReq, mockRes, mockNext);
-
-          const expectedErr = new WrongPasswordError();
-
-          expect(mockUserModel.findOne).toHaveBeenCalled();
-          expect(mockRes.status).toHaveBeenCalledWith(401);
-          expect(mockRes.json).toHaveBeenCalledWith(expectedErr);
-        });
-
-    it('should run next function on general error',
-        async () => {
-          const mockReq = {
-            body: {
-              email: mockUser.email,
-              password: 'sus_password',
-            },
-          };
-          const mockRes = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-          };
-          const mockNext = jest.fn();
-
-          const mockUserModel = {
-            findOne: jest.fn().mockRejectedValue(new Error('whatev')),
-          };
-
-          const controller = new AuthenticationController({
-            userModel: mockUserModel,
-            roleModel: mockRoleModel,
-            bcrypt,
-            jwt,
-          });
-
-          await controller.handleLogin(mockReq, mockRes, mockNext);
-
-          expect(mockNext).toHaveBeenCalled();
-        });
-  });
-
-  describe('authorize', () => {
-    it('should run next function if bearer token and role valid.', async () => {
-      const roleModel = Role;
-      const userModel = User;
-      const controller = new AuthenticationController({
-        roleModel, userModel, bcrypt, jwt,
+        roleModel,
+        userModel,
+        bcrypt,
+        jwt,
       });
       const mockToken = controller.createTokenFromUser(mockUser, mockRole);
       const mockReq = {
         headers: {
-          authorization: 'Bearer ' + mockToken,
+          authorization: "Bearer " + mockToken,
         },
       };
       const mockNext = jest.fn();
 
-      const authorizeCustomer = controller.authorize('COSTUMER');
+      const authorizeCustomer = controller.authorize("COSTUMER");
       await authorizeCustomer(mockReq, {}, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
     });
 
-    it('should res.status(401) with InsufficientAccessError .' +
-      'if token valid but role invalid.'
-    , async () => {
-      const roleModel = Role;
-      const userModel = User;
+    it("should res.status(401) with InsufficientAccessError ", async () => {
+      const mockUser = {
+        id: 2,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
+      };
+      const mockRole = { id: 1, name: "COSTUMER" };
+
+      const roleModel = jest.fn().mockReturnValue(null);
+      const userModel = jest.fn().mockReturnValue(null);
+
       const controller = new AuthenticationController({
-        roleModel, userModel, bcrypt, jwt,
+        roleModel,
+        userModel,
+        bcrypt,
+        jwt,
       });
       const mockToken = controller.createTokenFromUser(mockUser, mockRole);
       const mockReq = {
         headers: {
-          authorization: 'Bearer ' + mockToken,
+          authorization: "Bearer " + mockToken,
         },
       };
       const mockRes = {
@@ -444,136 +94,579 @@ describe('AuthenticationController', () => {
       };
       const mockNext = jest.fn();
 
-      const authorizeCustomer = controller.authorize('ADMIN');
+      const authorizeCustomer = controller.authorize("ADMIN");
       await authorizeCustomer(mockReq, mockRes, mockNext);
 
-      const err = new InsufficientAccessError('COSTUMER');
+      const err = new InsufficientAccessError("COSTUMER");
 
       expect(mockRes.status).toHaveBeenCalledWith(401);
       expect(mockRes.json).toHaveBeenCalledWith({
         error: {
           name: err.name,
           message: err.message,
-          details: err.details || null,
+          details: err.details,
         },
       });
     });
+    it("should res.status(401) with error token wrong.", async () => {
+      const mockUser = {
+        id: 2,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
+      };
+      const mockRole = { id: 1, name: "COSTUMER" };
+      const roleModel = jest.fn().mockReturnValue(null);
+      const userModel = jest.fn().mockReturnValue(null);
+      const controller = new AuthenticationController({
+        roleModel,
+        userModel,
+        bcrypt,
+        jwt,
+      });
+      const mockToken = controller.createTokenFromUser(mockUser, mockRole);
+      const mockReq = {
+        headers: {
+          authorization: "Bearer " + mockToken + "alsdnalnjd",
+        },
+      };
+      const mockRes = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockNext = jest.fn();
 
-    it('should res.status(401) with error instance if token wrong.',
-        async () => {
-          const roleModel = Role;
-          const userModel = User;
-          const controller = new AuthenticationController({
-            roleModel, userModel, bcrypt, jwt,
-          });
-          const mockToken = controller.createTokenFromUser(mockUser, mockRole);
-          const mockReq = {
-            headers: {
-              authorization: 'Bearer ' + mockToken + 'uwu',
-            },
-          };
-          const mockRes = {
-            status: jest.fn().mockReturnThis(),
-            json: jest.fn().mockReturnThis(),
-          };
-          const mockNext = jest.fn();
-
-          const authorizeCustomer = controller.authorize('ADMIN');
-          await authorizeCustomer(mockReq, mockRes, mockNext);
-
-          expect(mockRes.status).toHaveBeenCalledWith(401);
-        });
+      const authorizeCustomer = controller.authorize("ADMIN");
+      await authorizeCustomer(mockReq, mockRes, mockNext);
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+    });
   });
 
-  describe('#handleGetUser', () => {
-    it('should res.status(200) and return user data', async () => {
-      const mockReq = {
-        user: mockUser,
+  describe("handleLogin", () => {
+    it("should return json staus 201 and token", async () => {
+      const mockUser = new User({
+        id: 2,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
+      });
+
+      const mockRole = new Role({ id: 1, name: "CUSTOMER" });
+
+      const mockUserModel = {
+        findOne: jest.fn().mockReturnValue({
+          ...mockUser.dataValues,
+          Role: mockRole,
+        }),
       };
-      const mockRes = {
+
+      const mockRequest = {
+        body: {
+          email: "Arby@binar.co.id",
+          password: "123456",
+        },
+      };
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockNext = jest.fn();
+
+      const authentication = new AuthenticationController({
+        userModel: mockUserModel,
+        roleModel: mockRole,
+        bcrypt,
+        jwt,
+      });
+
+      await authentication.handleLogin(mockRequest, mockResponse, mockNext);
+      expect(mockUserModel.findOne).toHaveBeenCalledWith({
+        where: {
+          email: mockRequest.body.email.toLowerCase(),
+        },
+        include: [
+          {
+            model: mockRole,
+            attributes: ["id", "name"],
+          },
+        ],
+      });
+      expect(mockResponse.status).toHaveBeenCalledWith(201);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        accessToken: expect.any(String),
+      });
+    });
+
+    // it("should res.status(404) and return error if email not registered.", async () => {
+    //   const mockUser = {
+    //     id: 2,
+    //     name: "Arby",
+    //     email: "Arby@binar.co.id",
+    //     password:"123456",       
+    //     image: "gambar",
+    //     roleId: 1,
+    //   };
+
+    //   const mockRole = new Role({ id: 1, name: "CUSTOMER" });
+    //   const mockRoleModel = {
+    //     findOne: jest.fn().mockReturnValue(mockRole),
+    //   };
+
+    //   const mockReq = {
+    //     body: {
+    //       email: mockUser.email,
+    //       password: mockUser.password,
+    //     },
+    //   };
+    //   const mockRes = {
+    //     status: jest.fn().mockReturnThis(),
+    //     json: jest.fn().mockReturnThis(),
+    //   };
+    //   const mockNext = jest.fn();
+
+    //   const mockUserModel = {
+    //     findOne: jest.fn().mockReturnValue(null),
+    //   };
+
+    //   const controller = new AuthenticationController({
+    //     userModel: mockUserModel,
+    //     roleModel: mockRoleModel,
+    //     bcrypt,
+    //     jwt,
+    //   });
+
+    //   await controller.handleLogin(mockReq, mockRes, mockNext);
+
+    //   const expectedErr = new EmailNotRegisteredError(mockUser.email);
+
+    //   expect(mockUserModel.findOne).toHaveBeenCalled();
+    //   expect(mockRes.status).toHaveBeenCalledWith(404);
+    //   expect(mockRes.json).toHaveBeenCalledWith(expectedErr);
+    // });
+
+    it("should return 404 status and an error message", async () => {
+      const mockUserModel = {
+        findOne: jest.fn().mockReturnValue(null),
+      };
+
+      const mockRole = new Role({ id: 1, name: "CUSTOMER" });
+
+      const mockRequest = {
+        body: {
+          email: "arby@binar.co.id",
+          password: "123456",
+        },
+      };
+
+      const mockResponse = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn().mockReturnThis(),
       };
 
+      const mockNext = jest.fn();
+
+      const authentication = new AuthenticationController({
+        userModel: mockUserModel,
+        roleModel: mockRole,
+        bcrypt,
+        jwt,
+      });
+
+      const err = new EmailNotRegisteredError(mockRequest.body.email)
+
+      await authentication.handleLogin(mockRequest, mockResponse, mockNext);
+
+      expect(mockUserModel.findOne).toHaveBeenCalledWith({
+        where: {
+          email: mockRequest.body.email.toLowerCase(),
+        },
+        include: [
+          {
+            model: mockRole,
+            attributes: ["id", "name"],
+          },
+        ],
+      });
+
+      expect(mockResponse.status).toHaveBeenCalledWith(404);
+      expect(mockResponse.json).toHaveBeenCalledWith(err);
+    });
+
+    it("should return 401 status and an error message", async () => {
+      const mockUser = new User({
+        id: 5,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
+      });
+
+      const mockRole = new Role({ id: 1, name: "CUSTOMER" });
+
       const mockUserModel = {
+        findOne: jest.fn().mockReturnValue({
+          ...mockUser.dataValues,
+        }),
+      };
+
+      const mockRequest = {
+        body: {
+          email: "Arby@binar.co.id",
+          password: "123",
+        },
+      };
+
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+
+      const mockNext = {};
+
+      const authentication = new AuthenticationController({
+        userModel: mockUserModel,
+        roleModel: mockRole,
+        bcrypt,
+        jwt,
+      });
+
+      const error = new WrongPasswordError();
+
+      await authentication.handleLogin(mockRequest, mockResponse, mockNext);
+
+      expect(mockUserModel.findOne).toHaveBeenCalledWith({
+        where: {
+          email: mockRequest.body.email.toLowerCase(),
+        },
+        include: [
+          {
+            model: mockRole,
+            attributes: ["id", "name"],
+          },
+        ],
+      });
+
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+
+      expect(mockResponse.json).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe("#handleRegister", () => {
+    it("should return status 201  and token", async () => {
+      const mockUser = new User({
+        id: 2,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
+      });
+
+      const mockRole = new Role({ id: 1, name: "CUSTOMER" });
+
+      const mockUserModel = {
+        findOne: jest.fn().mockReturnValue(null),
+        create: jest.fn().mockReturnValue(mockUser),
+      };
+
+      const mockRoleModel = {
+        findOne: jest.fn().mockReturnValue(mockRole.name),
+      };
+
+      const mockRequest = {
+        body: {
+          name: "Arby",
+          email: "Arby@binar.co.id",
+          password: "123456",
+        },
+      };
+      const mockResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn().mockReturnThis(),
+      };
+      const mockNext = {};
+
+      const authentication = new AuthenticationController({
+        userModel: mockUserModel,
+        roleModel: mockRoleModel,
+        bcrypt,
+        jwt,
+      });
+
+      await authentication.handleRegister(mockRequest, mockResponse, mockNext);
+
+      expect(mockUserModel.findOne).toHaveBeenCalledWith({
+        where: { email: mockRequest.body.email.toLowerCase() },
+      });
+      expect(mockRoleModel.findOne).toHaveBeenCalledWith({
+        where: { name: mockRole.name },
+      });
+      expect(mockUserModel.create).toHaveBeenCalled();
+      expect(mockResponse.status).toHaveBeenCalledWith(201);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        accessToken: expect.any(String),
+      });
+    });
+
+    // it("should return status 422 status and json error message", async () => {
+
+    //   const mockRole = {
+    //     id: 1,
+    //     name: "COSTUMER",
+    //   };
+    //   const mockRoleModel = {
+    //     findOne: jest.fn().mockReturnValue(mockRole),
+    //   };
+    //   const mockReq = {
+    //     body: {
+    //       name: "Arby",
+    //       email: "Arby@binar.co.id",
+    //       password: "123456",
+    //     },
+    //   };
+    //   const mockRes = {
+    //     status: jest.fn().mockReturnThis(),
+    //     json: jest.fn().mockReturnThis(),
+    //   };
+    //   const mockNext = jest.fn();
+
+    //   const mockUserModel = {
+    //     findOne: jest.fn().mockReturnValue(true),
+    //   };
+    //   const controller = new AuthenticationController({
+    //     userModel: mockUserModel,
+    //     roleModel: mockRoleModel,
+    //     bcrypt,
+    //     jwt,
+    //   });
+
+    //   await controller.handleRegister(
+    //       mockReq, mockRes, mockNext,
+    //   );
+
+    //   expect(mockUserModel.findOne).toHaveBeenCalled();
+    //   expect(mockRes.status).toHaveBeenCalledWith(422);
+
+    // });
+  });
+
+  describe("handleGetUser", () => {
+    it("should return 200 status and user", async () => {
+      const mockUser = new User({
+        id: 5,
+        name: "Arby",
+        email: "Arby@binar.ac.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
+      });
+
+      const mockUserModel = {
+        ...mockUser.dataValues,
         findByPk: jest.fn().mockReturnValue(mockUser),
       };
+
+      const mockRole = new Role({ id: 1, name: "CUSTOMER" });
+
       const mockRoleModel = {
-        findByPk: jest.fn().mockReturnValue(true),
+        ...mockRole.dataValues,
+        findByPk: jest.fn().mockReturnValue(mockRole),
       };
 
-      const controller = new AuthenticationController({
-        userModel: mockUserModel,
-        roleModel: mockRoleModel,
-        bcrypt, jwt,
-      });
-
-      await controller.handleGetUser(mockReq, mockRes);
-
-      expect(mockRes.status).toHaveBeenCalledWith(200);
-      expect(mockRes.json).toHaveBeenCalledWith(mockUser);
-    });
-
-    it('should res.status(404) with RecordNotFoundError ' +
-     'if user not found.',
-    async () => {
-      const mockReq = {
-        user: mockUser,
+      const mockRequest = {
+        user: {
+          id: 5,
+        },
       };
-      const mockRes = {
+
+      const mockResponse = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn().mockReturnThis(),
       };
+      const mockNext = jest.fn();
 
-      const mockUserModel = {
-        findByPk: jest.fn().mockReturnValue(false),
-      };
-      const mockRoleModel = {
-        findByPk: jest.fn().mockReturnValue(false),
-      };
-
-      const controller = new AuthenticationController({
+      const authentication = new AuthenticationController({
         userModel: mockUserModel,
         roleModel: mockRoleModel,
-        bcrypt, jwt,
+        bcrypt,
+        jwt,
       });
 
-      await controller.handleGetUser(mockReq, mockRes);
-      const expectedErr = new RecordNotFoundError(mockUser.name);
+      await authentication.handleGetUser(mockRequest, mockResponse, mockNext);
 
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith(expectedErr);
+      expect(mockUserModel.findByPk).toHaveBeenCalledWith(mockRequest.user.id);
+      expect(mockRoleModel.findByPk).toHaveBeenCalledWith(mockUserModel.roleId);
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith(mockUser);
     });
 
-    it('should res.status(404) with RecordNotFoundError ' +
-      'if role not found.',
-    async () => {
-      const mockReq = {
-        user: mockUser,
-      };
-      const mockRes = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-      };
+    it(
+      "should res.status(404) with RecordNotFoundError " + "if user not found.",
+      async () => {
+        const mockUser = {
+          id: 2,
+          name: "Arby",
+          email: "Arby@binar.co.id",
+          encryptedPassword: "$2jakdbqudqiuy7981y9ge9g1dnqdiq9112g.dkah",
+          roleId: 1,
+        };
+        const mockReq = {
+          user: mockUser,
+        };
+        const mockRes = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn().mockReturnThis(),
+        };
 
-      const mockUserModel = {
-        findByPk: jest.fn().mockReturnValue(true),
-      };
-      const mockRoleModel = {
-        findByPk: jest.fn().mockReturnValue(false),
-      };
+        const mockUserModel = {
+          findByPk: jest.fn().mockReturnValue(false),
+        };
+        const mockRoleModel = {
+          findByPk: jest.fn().mockReturnValue(false),
+        };
 
-      const controller = new AuthenticationController({
-        userModel: mockUserModel,
-        roleModel: mockRoleModel,
-        bcrypt, jwt,
+        const controller = new AuthenticationController({
+          userModel: mockUserModel,
+          roleModel: mockRoleModel,
+          bcrypt,
+          jwt,
+        });
+
+        await controller.handleGetUser(mockReq, mockRes);
+        const err = new NotFoundError(mockUser.name);
+
+        expect(mockRes.status).toHaveBeenCalledWith(404);
+        expect(mockRes.json).toHaveBeenCalledWith(err);
+      }
+    );
+  });
+
+  describe("#createTokenFromUser", () => {
+    it("should return token", () => {
+      const mockUser = new User({
+        id: 2,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
       });
 
-      await controller.handleGetUser(mockReq, mockRes);
-      const expectedErr = new RecordNotFoundError(mockUser.name);
+      const mockRole = new Role({ id: 1, name: "CUSTOMER" });
 
-      expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.json).toHaveBeenCalledWith(expectedErr);
+      const authentication = new AuthenticationController({
+        userModel: mockUser,
+        roleModel: mockRole,
+        bcrypt,
+        jwt,
+      });
+
+      const token = authentication.createTokenFromUser(mockUser, mockRole);
+
+      expect(token).toEqual(expect.any(String));
+    });
+  });
+
+  describe("#decodeToken", () => {
+    it("should return user", () => {
+      const mockUser = new User({
+        id: 2,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
+      });
+
+      const mockRole = new Role({ id: 1, name: "CUSTOMER" });
+
+      const authentication = new AuthenticationController({
+        userModel: mockUser,
+        roleModel: mockRole,
+        bcrypt,
+        jwt,
+      });
+
+      const token = authentication.createTokenFromUser(mockUser, mockRole);
+
+      const user = authentication.decodeToken(token);
+
+      expect(user).toEqual(user);
+    });
+  });
+
+  describe("encryptPassword", () => {
+    it("should return encrypted password", () => {
+      const mockUser = new User({
+        id: 2,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword:
+          "$2a$10$a/Nv0ULUmsfDUDbgf7991uENTqBMEA0LbcUcQ3U4xElPZumsV.Kmy",
+        roleId: 1,
+      });
+
+      const mockRole = new Role({ id: 1, name: "CUSTOMER" });
+
+      const mockRequest = {
+        body: {
+          password: "123456",
+        },
+      };
+
+      const authentication = new AuthenticationController({
+        userModel: mockUser,
+        roleModel: mockRole,
+        bcrypt,
+        jwt,
+      });
+
+      const encryptedPassword = authentication.encryptPassword(
+        mockRequest.body.password,
+        10
+      );
+
+      expect(encryptedPassword).toEqual(expect.any(String));
+    });
+  });
+
+  describe("#verifyPassword", () => {
+    it("should return true", () => {
+      const mockUser = new User({
+        id: 2,
+        name: "Arby",
+        email: "Arby@binar.co.id",
+        encryptedPassword: "bagfigaofusofgcuag73b4cuyb7t83gb8",
+        roleId: 1,
+      });
+
+      const mockRole = new Role({ id: 1, name: "CUSTOMER" });
+
+      const mockRequest = {
+        body: {
+          password: "bagfigaofusofgcuag73b4cuyb7t83gb8",
+        },
+      };
+
+      const authentication = new AuthenticationController({
+        userModel: mockUser,
+        roleModel: mockRole,
+        bcrypt,
+        jwt,
+      });
+
+      authentication.verifyPassword(
+        mockUser.encryptedPassword,
+        mockRequest.body.password
+      );
+
+      expect(mockUser.encryptedPassword).toEqual(mockRequest.body.password);
     });
   });
 });

@@ -4,7 +4,7 @@ class ApplicationController {
   handleGetRoot = (req, res) => {
     res.status(200).json({
       status: "OK",
-      message: "BCR API is up and running!",
+      message: "BCR API is up and running!"
     });
   }
 
@@ -20,12 +20,12 @@ class ApplicationController {
     })
   }
 
-  handleError = (err, req, res) => {
+  handleError = (err, req, res, next) => {
     res.status(500).json({
       error: {
         name: err.name,
         message: err.message,
-        details: err.details || null,
+        details: err.details,
       }
     })
   } 

@@ -1,9 +1,10 @@
-const { NotFoundError } = require('../../errors');
-const ApplicationController = require('../ApplicationController');
+const ApplicationController = require("../ApplicationController");
+const NotFoundError = require("../../errors/NotFoundError");
+const ApplicationError = require("../../errors/ApplicationError");
 
 describe("ApplicationController", () => {
   describe("#handleGetRoot", () => {
-    it("should call res.status(200) and res.json with status and message", () => {
+    it("should call res.status(200) and res.Json with status and message", () => {
       const mockRequest = {};
 
       const mockResponse = {
@@ -11,9 +12,8 @@ describe("ApplicationController", () => {
         json: jest.fn().mockReturnThis(),
       };
 
-      const applicationController = new ApplicationController();
-
-      applicationController.handleGetRoot(mockRequest, mockResponse);
+      const controller = new ApplicationController();
+      controller.handleGetRoot(mockRequest, mockResponse);
 
       expect(mockResponse.status).toHaveBeenCalledWith(200);
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -24,10 +24,10 @@ describe("ApplicationController", () => {
   });
 
   describe("#handleNotFound", () => {
-    it("should call res.status(404) and res.json with error message and details", () => {
+    it("should call res.status(200) and res.Json with status and message", () => {
       const mockRequest = {
-        method: 'get',
-        url: 'www.test.com'
+        method: "get",
+        url: "kamunanya.co.id",
       };
 
       const mockResponse = {
@@ -35,11 +35,9 @@ describe("ApplicationController", () => {
         json: jest.fn().mockReturnThis(),
       };
 
-      const err = new NotFoundError(mockRequest.method, mockRequest.url)
-
-      const applicationController = new ApplicationController();
-
-      applicationController.handleNotFound(mockRequest, mockResponse);
+      const err = new NotFoundError(mockRequest.method, mockRequest.url);
+      const controller = new ApplicationController();
+      controller.handleNotFound(mockRequest, mockResponse);
 
       expect(mockResponse.status).toHaveBeenCalledWith(404);
       expect(mockResponse.json).toHaveBeenCalledWith({
@@ -47,77 +45,75 @@ describe("ApplicationController", () => {
           name: err.name,
           message: err.message,
           details: err.details,
-        }
+        },
       });
     });
   });
 
   describe("#handleError", () => {
-    it("should call res.status(500) and res.json with error message and details", () => {
-      const err = new Error('Error');
-
-      const mockRequest = {};
+    it("should call res.status(500) and res.Json with status and message", () => {
+      const mockRequest = {
+        method: "get",
+        url: "kamunanya.co.id",
+      };
 
       const mockResponse = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn().mockReturnThis(),
       };
 
-      const mockNext = {};
+      const mockNext =({})
 
-      const applicationController = new ApplicationController();
+      const err = new NotFoundError(mockRequest.method, mockRequest.url);
 
-      applicationController.handleError(err, mockRequest, mockResponse, mockNext);
+      const controller = new ApplicationController();
+      controller.handleError(err, mockRequest, mockResponse ,mockNext);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
       expect(mockResponse.json).toHaveBeenCalledWith({
         error: {
           name: err.name,
           message: err.message,
-          details: err.details || null
-        }
+          details: err.details || null,
+        },
       });
     });
   });
 
   describe("#getOffsetFromRequest", () => {
-    it("should return offset", () => {
+    it("should return the offset from request", () => {
       const mockRequest = {
         query: {
-          page: 2,
-          pageSize: 10
-        }
+          page: 1,
+          pageSize: 10,
+        },
       };
+      const controller = new ApplicationController();
+      const offset = controller.getOffsetFromRequest(mockRequest);
 
-      const applicationController = new ApplicationController();
-
-      const offset = applicationController.getOffsetFromRequest(mockRequest);
-
-      expect(offset).toEqual(10);
+      expect(offset).toEqual(0);
     });
   });
 
   describe("#buildPaginationObject", () => {
-    it("should return page, pageCount, pageSize, and count", () => {
+    it("should return the Pagination from request", () => {
       const mockRequest = {
         query: {
           page: 1,
-          pageSize: 10
-        }
+          pageSize: 10,
+        },
       };
+      const count = 1;
 
-      const mockCount = 20;
-
-      const applicationController = new ApplicationController();
-
-      const result = applicationController.buildPaginationObject(mockRequest, mockCount)
+      const controller = new ApplicationController();
+      const result = controller.buildPaginationObject(mockRequest, count);
 
       expect(result).toEqual({
         page: 1,
-        pageCount: 2,
+        pageCount: 1,
         pageSize: 10,
-        count: 20
-      })
+        count: 1,
+      });
     });
   });
 });

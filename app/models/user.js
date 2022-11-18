@@ -1,6 +1,6 @@
 'use strict';
 const {
-  Model
+  Model,
 } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
@@ -15,23 +15,23 @@ module.exports = (sequelize, DataTypes) => {
       });
     }
 
-    toJSON() {
-      return {
-        id: this.id,
-        name: this.name,
-        email: this.email,
-        image: this.image,
-        createdAt: this.createdAt,
-        updatedAt: this.updatedAt,
-      }
-    }
+    // toJSON() {
+    //   return {
+    //     id: this.id,
+    //     name: this.name,
+    //     email: this.email,
+    //     image: this.image,
+    //     createdAt: this.createdAt,
+    //     updatedAt: this.updatedAt,
+    //   };
+    // }
   }
   User.init({
     name: DataTypes.STRING,
     email: DataTypes.STRING,
     image: DataTypes.STRING,
     encryptedPassword: DataTypes.STRING,
-    roleId: DataTypes.INTEGER
+    roleId: DataTypes.INTEGER,
   }, {
     sequelize,
     modelName: 'User',

@@ -1,5 +1,5 @@
 const ApplicationController = require("./ApplicationController");
-const { EmailNotRegisteredError, InsufficientAccessError, RecordNotFoundError, WrongPasswordError } = require("../errors");
+const { EmailNotRegisteredError, EmailAlreadyTakenError, InsufficientAccessError, NotFoundError, WrongPasswordError } = require("../errors");
 const { JWT_SIGNATURE_KEY } = require("../../config/application");
 
 class AuthenticationController extends ApplicationController {
@@ -30,7 +30,6 @@ class AuthenticationController extends ApplicationController {
 
         if (!!rolename && rolename != payload.role.name)
           throw new InsufficientAccessError(payload?.role?.name);
-
         req.user = payload;
         next();
       }
@@ -83,46 +82,40 @@ class AuthenticationController extends ApplicationController {
   }
 
   handleRegister = async (req, res, next) => {
-    try {
-      const name = req.body.name;
-      const email = req.body.email.toLowerCase();
-      const password = req.body.password;
-      let existingUser = await this.userModel.findOne({ where: { email, }, });
+    const name = req.body.name;
+    const email = req.body.email.toLowerCase();
+    const password = req.body.password;
+    let existingUser = await this.userModel.findOne({ where: { email, }, });
 
-      if (!existingUser) {
-        const err = new EmailAlreadyTakenError(email);
-        res.status(422).json(err);
-        return;
-      }
+    // if (!existingUser) {
+    //   const err = new EmailAlreadyTakenError(email);
+    //   res.status(422).json(err);
+    //   return;
+    // }
 
-      const role = await this.roleModel.findOne({
-        where: { name: this.accessControl.CUSTOMER }
-      });
+    const role = await this.roleModel.findOne({
+      where: { name: this.accessControl.CUSTOMER }
+    });
 
-      const user = await this.userModel.create({
-        name,
-        email,
-        encryptedPassword: this.encryptPassword(password),
-        roleId: role.id,
-      }) 
+    const user = await this.userModel.create({
+      name,
+      email,
+      encryptedPassword: this.encryptPassword(password),
+      roleId: role.id,
+    }) 
 
-      const accessToken = this.createTokenFromUser(user, role);
+    const accessToken = this.createTokenFromUser(user, role);
 
-      res.status(201).json({
-        accessToken,
-      })
-    }
-
-    catch(err) {
-      next(err);
-    }
+    res.status(201).json({
+      accessToken,
+    })
   }
 
   handleGetUser = async (req, res) => {
     const user = await this.userModel.findByPk(req.user.id);
 
     if (!user) {
-      const err = new RecordNotFoundError(this.userModel.name);
+      const err = new NotFoundError(req.user.name);
       res.status(404).json(err)
       return;
     }
@@ -130,7 +123,7 @@ class AuthenticationController extends ApplicationController {
     const role = await this.roleModel.findByPk(user.roleId); 
 
     if (!role) {
-      const err = new RecordNotFoundError(this.roleModel.name);
+      const err = new NotFoundError(user.user.name);
       res.status(404).json(err)
       return;
     }
