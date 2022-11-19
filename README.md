@@ -24,5 +24,3 @@ yarn test
 ```
 yarn eslint
 ```
-
-![App Screenshot](https://res.cloudinary.com/dd93u8fa5/image/upload/v1668862892/Binar%20Academy/Unit_tests_yszuux.jpg)
