@@ -1,9 +1,28 @@
-# BCR API
+# CHALLENGE 8 BINAR CAR RENTAL - FSW BINAR
 
-Di dalam repository ini terdapat implementasi API dari Binar Car Rental.
+### Description
+The repository has made with ESTlint, making unit tests by ```jest and supertest```, and deploying this project by ```railway.app```
 
-1. Fork repository
-2. Tulis unit test di dalam repository ini menggunakan `jest`.
-3. Coverage minimal 70%
+### Running public app
+Access this app on ```https://cch8-binaracademy-production.up.railway.app/```
 
-Good luck!
+### Running local app
+```
+1. yarn install untuk node modules
+2. yarn setup
+3. yarn develop
+```
+
+### Running unit tests
+```
+yarn test
+```
+
+![App Screenshot](https://res.cloudinary.com/dd93u8fa5/image/upload/v1668862892/Binar%20Academy/Unit_tests_yszuux.jpg)
+
+### Running ESLint
+```
+yarn eslint
+```
+
+![App Screenshot](https://res.cloudinary.com/dd93u8fa5/image/upload/v1668862892/Binar%20Academy/Unit_tests_yszuux.jpg)

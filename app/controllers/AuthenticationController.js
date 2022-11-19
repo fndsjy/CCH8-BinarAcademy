@@ -1,5 +1,5 @@
 const ApplicationController = require("./ApplicationController");
-const { EmailNotRegisteredError, EmailAlreadyTakenError, InsufficientAccessError, NotFoundError, WrongPasswordError } = require("../errors");
+const { EmailNotRegisteredError, InsufficientAccessError, NotFoundError, WrongPasswordError } = require("../errors");
 const { JWT_SIGNATURE_KEY } = require("../../config/application");
 
 class AuthenticationController extends ApplicationController {
@@ -81,11 +81,11 @@ class AuthenticationController extends ApplicationController {
     }
   }
 
-  handleRegister = async (req, res, next) => {
+  handleRegister = async (req, res) => {
     const name = req.body.name;
     const email = req.body.email.toLowerCase();
     const password = req.body.password;
-    let existingUser = await this.userModel.findOne({ where: { email, }, });
+    // let existingUser = await this.userModel.findOne({ where: { email, }, });
 
     const role = await this.roleModel.findOne({
       where: { name: this.accessControl.CUSTOMER }

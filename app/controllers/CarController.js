@@ -82,7 +82,7 @@ class CarController extends ApplicationController {
         },
       });
 
-      if (!!activeRent) {
+      if (!activeRent) {
         const err = new CarAlreadyRentedError(car);
         res.status(422).json(err);
         return;
@@ -139,7 +139,7 @@ class CarController extends ApplicationController {
       res.status(204).end();
     } else {
       res.status(404).end();
-    };
+    }
   };
 
   getCarFromRequest(req) {
@@ -157,8 +157,8 @@ class CarController extends ApplicationController {
       required: false,
     };
 
-    if (!!size) where.size = size;
-    if (!!availableAt) {
+    if (!size) where.size = size;
+    if (!availableAt) {
       include.where = {
         rentEndedAt: {
           [Op.gte]: availableAt,
